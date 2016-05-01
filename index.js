@@ -115,10 +115,35 @@ function wait(ms) {
 	});
 }
 
+function createConnection(options) {
+	return new Promise((resolve, reject) => {
+		const connection = net.createConnection(options);
+		connection.on('connect', () => resolve(connection));
+		connection.on('error', reject);
+	});
+}
+
 api._write = co.wrap(function* (type, payload) {
 	const id = this.id;
+	let connection;
+	let connected = false;
+	let connectionAttemptNumber = 0
 
-	const connection = net.createConnection({ port: 9999 })
+	while (connectionAttemptNumber < 5) {
+		try {
+			connection = yield createConnection({ port: 9999 });
+			connected = true;
+		} catch (err) {
+			yield wait(250);
+			continue;
+		}
+
+		break;
+	}
+
+	if (!connected) {
+		throw new Error(`Can't establish socket connection with electron :(`)
+	}
 
 	return yield new Promise((resolve, reject) => {
 		let data = '';
@@ -142,15 +167,20 @@ api._write = co.wrap(function* (type, payload) {
 
 
 const API = {
-	create: function (waitTimeout) {
-		waitTimeout = waitTimeout || 5000;
+	create: co.wrap(function* (options) {
+		id++;
+		options = options || {};
 
-		return {
+		const waitTimeout = options.waitTimeout || 5000;
+
+		yield api._write.call({ id }, 'createWindow', options.browserWindow || {});
+
+		return yield Promise.resolve({
 			__proto__: api,
-			id: id++,
+			id,
 			waitTimeout
-		}
-	}
+		});
+	})
 }
 
 module.exports = API;

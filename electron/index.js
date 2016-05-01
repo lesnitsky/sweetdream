@@ -19,23 +19,23 @@ let server = net.createServer({ allowHalfOpen: true }, (connection) => {
 		yield appReady;
 
 		const message = JSON.parse(data);
-
-		let window;
-
-		if (!windows.has(message.id)) {
-			window = new BrowserWindow({
-				webPreferences: {
-					partition: `nopersist:client-${message.id}`
-				},
-				show: false
-			});
-
-			windows.set(message.id, window);
-		} else {
-			window = windows.get(message.id);
-		}
+		const window = windows.get(message.id);
 
 		switch (message.type) {
+			case 'createWindow':
+				const _window = new BrowserWindow(Object.assign({
+					webPreferences: {
+						partition: `nopersist:client-${message.id}`
+					},
+					show: false
+				}, message.payload));
+
+				windows.set(message.id, _window);
+				write({
+					type: 'success'
+				});
+				break;
+
 			case 'setCookies':
 				window.webContents.session.cookies.set(message.payload, (err, cookie) => {
 					if (err) {
