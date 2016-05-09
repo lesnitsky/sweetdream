@@ -44,6 +44,10 @@ api.evaluate = co.wrap(function* (fn) {
 
 	// console.log('evaluate:', result);
 
+	if (result.payload.status === 'error') {
+		throw result.payload.err;
+	}
+
 	return result.payload;
 });
 
